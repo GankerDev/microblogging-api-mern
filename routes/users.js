@@ -1,69 +1,72 @@
 var express = require('express');
+var mongoose = require('mongoose');
+
 var router = express.Router();
 
-/* GET users listing. */
-router.get('/', function(req, res, next) {
-  res.json({
-    "users": [{
-        "id": 123,
-        "name": "Eladio Guardiola",
-        "phones": {
-          "home": "800-123-4567",
-          "mobile": "877-123-1234"
-        },
-        "email": ["jd@example.com",
-          "jd@example.com",
-        ],
-        "dateOfBirth": "1983-01-09T00:00:00.000Z",
-        "registered": true
-      },
-      {
-        "id": 456,
-        "name": "Nemesio Tornero",
-        "phones": {
-          "home": "800-123-3498",
-          "mobile": "877-432-1278"
-        },
-        "email": ["pt@example.com",
-          "pt@example.com",
-        ],
-        "dateOfBirth": "1983-01-09T00:00:00.000Z",
-        "registered": false
-      }
-    ]
+//Models
+var User = require('../models/User.js');
+
+var db = mongoose.connection;
+
+/* GET users listing ordered by creationdate. */
+router.get('/', function (req, res, next) {
+    User.find().sort('-creationdate').exec(function(err, users) {
+      if (err) res.status(500).send(err);
+      else res.status(200).json(users);
+    });
+});
+
+/* GET single user by Id */
+router.get('/:id', function (req, res, next) {
+  User.findById(req.params.id, function (err, userinfo) {
+    if (err) res.status(500).send(err);
+    //if (err) return next(err);
+    else res.status(200).json(userinfo);
   });
 });
 
-router.get('/:id', (req, res) => {
-  if (req.params.id == "123") {
-    res.json({
-      "id": 123,
-      "name": "Eladio Guardiola",
-      "phones": {
-        "home": "800-123-4567",
-        "mobile": "877-123-1234"
-      },
-      "email": ["jd@example.com",
-        "jd@example.com",
-      ],
-      "dateOfBirth": "1983-01-09T00:00:00.000Z",
-      "registered": true
-    })
-  } else {
-    res.status(404).send("¡Lo siento, el item no se ha encontrado!")
-  }
+/* POST a new user*/
+router.post('/', function (req, res, next) {
+  User.create(req.body, function (err, userinfo) {
+    if (err) res.status(500).send(err);
+    else res.sendStatus(200);
+  });
 });
 
-router.put('/:id', (req, res) => {
-  var updated_user = req.body;
-  // TODO: actualizar usuario
-  res.status(200).send('Usuario' + req.body.name + 'ha sido actualizado satisfactoriamente');
+/* PUT an existing user */
+router.put('/:id', function (req, res, next) {
+  User.findByIdAndUpdate(req.params.id, req.body, function (err, userinfo) {
+    if (err) res.status(500).send(err);
+    else res.sendStatus(200);
+  });
 });
 
-router.delete('/:id', (req, res) => {
-  // TODO: eliminar usuario
 
+/* DELETE an existing user */
+router.delete('/:id', function (req, res, next) {
+  User.findByIdAndDelete(req.params.id, function (err, userinfo) {
+    if (err) res.status(500).send(err);
+    else res.sendStatus(200);
+  });
 });
 
+/* Check if user exists */
+router.post('/signin', function (req, res, next) {
+  User.findOne({username: req.body.username}, function (err, user) {
+    if (err) res.status(500).send(err);
+    // If user exists...
+		if (user!=null){
+    	user.comparePassword(req.body.password,function(err, isMatch){
+        // If password is correct...
+        if (isMatch)
+          res.status(200).send({message: 'ok', role: user.role, id: user._id});
+        else
+          res.send({message: 'Credenciales inválidas'});
+      });
+    }else{
+      res.send({message: 'Credenciales inválidas'});
+    }
+  });
+});
 
 module.exports = router;
